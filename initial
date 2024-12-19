@@ -1,0 +1,67 @@
+import torch
+import torch.nn as nn
+import torchvision.utils as vutils
+import matplotlib.pyplot as plt
+import numpy as np
+
+# Generator Network
+def weights_init(m):
+    if isinstance(m, (nn.ConvTranspose2d, nn.Conv2d, nn.BatchNorm2d)):
+        nn.init.normal_(m.weight.data, 0.0, 0.02)
+
+class Generator(nn.Module):
+    def __init__(self, nz, ngf, nc):
+        super(Generator, self).__init__()
+        self.main = nn.Sequential(
+            nn.ConvTranspose2d(nz, ngf * 8, 4, 1, 0, bias=False),
+            nn.BatchNorm2d(ngf * 8),
+            nn.ReLU(True),
+            nn.ConvTranspose2d(ngf * 8, ngf * 4, 4, 2, 1, bias=False),
+            nn.BatchNorm2d(ngf * 4),
+            nn.ReLU(True),
+            nn.ConvTranspose2d(ngf * 4, ngf * 2, 4, 2, 1, bias=False),
+            nn.BatchNorm2d(ngf * 2),
+            nn.ReLU(True),
+            nn.ConvTranspose2d(ngf * 2, ngf, 4, 2, 1, bias=False),
+            nn.BatchNorm2d(ngf),
+            nn.ReLU(True),
+            nn.ConvTranspose2d(ngf, nc, 4, 2, 1, bias=False),
+            nn.Tanh()
+        )
+
+    def forward(self, input):
+        return self.main(input)
+
+# Parameters
+nz = 100  # Size of z latent vector
+ngf = 64  # Size of feature maps in generator
+nc = 3    # Number of color channels (3 for RGB)
+
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+# Initialize the generator
+generator = Generator(nz, ngf, nc).to(device)
+generator.apply(weights_init)
+
+# Function to generate images based on user input
+def generate_images(user_input):
+    # Convert user input to a latent vector
+    noise = torch.randn(64, nz, 1, 1, device=device)
+
+    if user_input == "bright":
+        noise += 0.5  # Adjust latent vector for brightness
+    elif user_input == "dark":
+        noise -= 0.5  # Adjust latent vector for darkness
+
+    fake_images = generator(noise)
+    
+    # Visualize the images
+    img_grid = vutils.make_grid(fake_images, normalize=True).cpu().numpy()
+    plt.figure(figsize=(8, 8))
+    plt.imshow(np.transpose(img_grid, (1, 2, 0)))
+    plt.axis("off")
+    plt.show()
+
+# Example user input
+user_input = input("Enter the style (bright/dark): ")
+generate_images(user_input)
